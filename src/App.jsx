@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import InventoryTable from "./components/InventoryTable";
 
 function App() {
   const [records, setRecords] = useState([]);
@@ -32,29 +33,7 @@ function App() {
       <h1>Book Bugs Inventory</h1>
       <p>{records.length} records retrieved from Airtable</p>
 
-      <table>
-        <thead>
-          <tr>
-            <th>Card</th>
-            <th>Description</th>
-            <th>Land</th>
-            <th>Status</th>
-            <th>Quantity</th>
-          </tr>
-        </thead>
-
-        <tbody>
-          {records.map((record) => (
-            <tr key={record.id}>
-              <td>#{record.fields["Card Number"] ?? "-"}</td>
-              <td>{record.fields.Desc ?? "-"}</td>
-              <td>{record.fields.Land ?? "-"}</td>
-              <td>{record.fields.Status ?? "-"}</td>
-              <td>{record.fields.Qty ?? 0}</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
+      <InventoryTable records={records} />
     </main>
   );
 }
