@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import InventoryTable from "./components/InventoryTable";
+import "./App.css";
 
 function App() {
   const [records, setRecords] = useState([]);
