@@ -12,6 +12,90 @@ main > p { margin-bottom: 28px; }
   width: 100%;
 }
 
+.app-intro {
+  text-align: center;
+}
+
+.child-switcher {
+  display: flex;
+  justify-content: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin: 24px 0 32px;
+}
+
+.child-button {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 20px;
+  border: 2px solid var(--border);
+  border-radius: 999px;
+  background: var(--bg);
+  color: var(--text-h);
+  font: inherit;
+  font-weight: 650;
+  cursor: pointer;
+  transition:
+    border-color 160ms ease,
+    transform 160ms ease;
+}
+
+.child-button:hover {
+  border-color: var(--accent);
+  transform: translateY(-1px);
+}
+
+.child-button.active {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: white;
+}
+
+.child-initial {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: var(--code-bg);
+  color: var(--text-h);
+  font-weight: 700;
+}
+
+.child-button.active .child-initial {
+  background: rgba(255, 255, 255, 0.22);
+  color: white;
+}
+
+.child-avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+.collection-header {
+  margin-bottom: 24px;
+  text-align: center;
+}
+
+.collection-header h2 {
+  margin-bottom: 6px;
+}
+
+.collection-header p {
+  margin: 0;
+}
+
+.collection-message {
+  text-align: center;
+}
+
+.error-message {
+  color: #c62828;
+}
+
 .inventory-table {
   width: 90%;
   max-width: 1100px;
