@@ -13,31 +13,51 @@ function App() {
   const [loadingCollection, setLoadingCollection] = useState(false);
   const [error, setError] = useState("");
 
-  useEffect(() => {
-    async function loadChildren() {
-      try {
-        const response = await fetch(`${API_BASE}/api/children`);
+const CURRENT_CHILD_ID = "JY001";
 
-        if (!response.ok) {
-          throw new Error("Could not retrieve children");
-        }
+useEffect(() => {
+  async function loadChildren() {
+    try {
+      const [childrenResponse, friendsResponse] = await Promise.all([
+        fetch(`${API_BASE}/api/children`),
+        fetch(`${API_BASE}/api/friends/${CURRENT_CHILD_ID}`),
+      ]);
 
-        const data = await response.json();
-
-        setChildren(data);
-
-        if (data.length > 0) {
-          setSelectedChildId(data[0].childId);
-        }
-      } catch (error) {
-        setError(error.message);
-      } finally {
-        setLoadingChildren(false);
+      if (!childrenResponse.ok) {
+        throw new Error("Could not retrieve children");
       }
-    }
 
-    loadChildren();
-  }, []);
+      if (!friendsResponse.ok) {
+        throw new Error("Could not retrieve friends");
+      }
+
+      const allChildren = await childrenResponse.json();
+      const friends = await friendsResponse.json();
+
+      const currentChild = allChildren.find(
+        (child) => child.childId === CURRENT_CHILD_ID
+      );
+
+      if (!currentChild) {
+        throw new Error("Current child not found");
+      }
+
+      const visibleChildren = [
+        currentChild,
+        ...friends,
+      ];
+
+      setChildren(visibleChildren);
+      setSelectedChildId(CURRENT_CHILD_ID);
+    } catch (error) {
+      setError(error.message);
+    } finally {
+      setLoadingChildren(false);
+    }
+  }
+
+  loadChildren();
+}, []);
 
   useEffect(() => {
     if (!selectedChildId) return;
@@ -100,7 +120,7 @@ function App() {
       <div className="child-switcher">
         {children.map((child) => (
           <button
-            key={child.id}
+            key={child.childId}
             type="button"
             className={
               selectedChildId === child.childId
@@ -124,6 +144,15 @@ function App() {
             {child.name}
           </button>
         ))}
+
+        <button
+          type="button"
+          className="child-button"
+          onClick={() => alert("Add Friend screen coming next")}
+        >
+          <span className="child-initial">+</span>
+          Add Friend
+        </button>
       </div>
 
       {selectedChild && (
