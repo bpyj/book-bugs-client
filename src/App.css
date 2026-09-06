@@ -351,3 +351,28 @@ main > p { margin-bottom: 28px; }
 .close-add-friend {
   margin-top: 16px;
 }
+
+.friend-result-details {
+  flex: 1;
+}
+
+.send-friend-request {
+  margin-top: 12px;
+  padding: 10px 14px;
+  border: 0;
+  border-radius: 10px;
+  background: var(--accent);
+  color: white;
+  font: inherit;
+  font-weight: 650;
+  cursor: pointer;
+}
+
+.send-friend-request:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.friend-request-message {
+  margin: 10px 0 0;
+}

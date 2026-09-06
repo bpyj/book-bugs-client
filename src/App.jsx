@@ -19,6 +19,9 @@ function App() {
   const [friendSearchMessage, setFriendSearchMessage] = useState("");
   const [searchingFriend, setSearchingFriend] = useState(false);
 
+  const [sendingFriendRequest, setSendingFriendRequest] = useState(false);
+  const [friendRequestMessage, setFriendRequestMessage] = useState("");
+
 const CURRENT_CHILD_ID = "JY001";
 
 useEffect(() => {
@@ -65,43 +68,43 @@ useEffect(() => {
   loadChildren();
 }, []);
 
-  useEffect(() => {
-    if (!selectedChildId) return;
+useEffect(() => {
+  if (!selectedChildId) return;
 
-    const controller = new AbortController();
+  const controller = new AbortController();
 
-    async function loadCollection() {
-      try {
-        setLoadingCollection(true);
-        setError("");
+  async function loadCollection() {
+    try {
+      setLoadingCollection(true);
+      setError("");
 
-        const response = await fetch(
-          `${API_BASE}/api/children/${selectedChildId}/collection`,
-          { signal: controller.signal }
-        );
+      const response = await fetch(
+        `${API_BASE}/api/children/${selectedChildId}/collection`,
+        { signal: controller.signal }
+      );
 
-        if (!response.ok) {
-          throw new Error("Could not retrieve collection");
-        }
+      if (!response.ok) {
+        throw new Error("Could not retrieve collection");
+      }
 
-        const data = await response.json();
+      const data = await response.json();
 
-        setRecords(data.collection);
-      } catch (error) {
-        if (error.name !== "AbortError") {
-          setError(error.message);
-        }
-      } finally {
-        if (!controller.signal.aborted) {
-          setLoadingCollection(false);
-        }
+      setRecords(data.collection);
+    } catch (error) {
+      if (error.name !== "AbortError") {
+        setError(error.message);
+      }
+    } finally {
+      if (!controller.signal.aborted) {
+        setLoadingCollection(false);
       }
     }
+  }
 
-    loadCollection();
+  loadCollection();
 
-    return () => controller.abort();
-  }, [selectedChildId]);
+  return () => controller.abort();
+}, [selectedChildId]);
 
   if (loadingChildren) {
     return <h2>Loading Book Bugs...</h2>;
@@ -128,6 +131,8 @@ useEffect(() => {
       setSearchingFriend(true);
       setFriendSearchResult(null);
       setFriendSearchMessage("");
+      setFriendRequestMessage("");
+      
 
       const response = await fetch(
         `${API_BASE}/api/children/search/${encodeURIComponent(searchId)}`
@@ -149,6 +154,50 @@ useEffect(() => {
       setFriendSearchMessage(error.message);
     } finally {
       setSearchingFriend(false);
+    }
+  }
+
+  async function sendFriendRequest() {
+    if (!friendSearchResult) return;
+
+    try {
+      setSendingFriendRequest(true);
+      setFriendRequestMessage("");
+
+      const response = await fetch(
+        `${API_BASE}/api/friend-requests`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            fromChildId: CURRENT_CHILD_ID,
+            toChildId: friendSearchResult.childId,
+          }),
+        }
+      );
+
+      const data = await response.json();
+
+      if (response.status === 409) {
+        setFriendRequestMessage(
+          `${friendSearchResult.name} is already your friend or has a pending request.`
+        );
+        return;
+      }
+
+      if (!response.ok) {
+        throw new Error(
+          data.message || "Could not send friend request"
+        );
+      }
+
+      setFriendRequestMessage("Friend request sent!");
+    } catch (error) {
+      setFriendRequestMessage(error.message);
+    } finally {
+      setSendingFriendRequest(false);
     }
   }
 
@@ -196,6 +245,7 @@ useEffect(() => {
             setFriendSearchId("");
             setFriendSearchResult(null);
             setFriendSearchMessage("");
+            setFriendRequestMessage("");
           }}
         >
           <span className="child-initial">+</span>
@@ -245,13 +295,29 @@ useEffect(() => {
                 {friendSearchResult.name.charAt(0)}
               </span>
 
-              <div>
+              <div className="friend-result-details">
                 <strong>{friendSearchResult.name}</strong>
                 <p>{friendSearchResult.childId}</p>
+
+                <button
+                  type="button"
+                  className="send-friend-request"
+                  onClick={sendFriendRequest}
+                  disabled={sendingFriendRequest}
+                >
+                  {sendingFriendRequest
+                    ? "Sending..."
+                    : "Send Friend Request"}
+                </button>
+
+                {friendRequestMessage && (
+                  <p className="friend-request-message">
+                    {friendRequestMessage}
+                  </p>
+                )}
               </div>
             </div>
           )}
-
           <button
             type="button"
             className="close-add-friend"
