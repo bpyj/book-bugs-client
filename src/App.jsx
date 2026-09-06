@@ -27,6 +27,9 @@ function App() {
   const [loadingFriendRequests, setLoadingFriendRequests] = useState(false);
   const [friendRequestsMessage, setFriendRequestsMessage] = useState("");
 
+  const [respondingRequestId, setRespondingRequestId] = useState("");
+  const [friendResponseMessage, setFriendResponseMessage] = useState("");
+
 const CURRENT_CHILD_ID = "JY001";
 
 useEffect(() => {
@@ -234,6 +237,48 @@ useEffect(() => {
     }
   }
 
+  async function respondToFriendRequest(fromChildId, action) {
+    try {
+      setRespondingRequestId(fromChildId);
+      setFriendResponseMessage("");
+
+      const response = await fetch(
+        `${API_BASE}/api/friend-requests/respond`,
+        {
+          method: "PATCH",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            fromChildId,
+            toChildId: selectedChildId,
+            action,
+          }),
+        }
+      );
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(
+          data.message || "Could not respond to friend request"
+        );
+      }
+
+      setFriendResponseMessage(
+        action === "accept"
+          ? "Friend request accepted."
+          : "Friend request declined."
+      );
+
+      await loadFriendRequests(selectedChildId);
+    } catch (error) {
+      setFriendResponseMessage(error.message);
+    } finally {
+      setRespondingRequestId("");
+    }
+  }
+
   return (
     <main>
       <h1>Book Bugs</h1>
@@ -393,9 +438,45 @@ useEffect(() => {
                     {request.name.charAt(0)}
                   </span>
 
-                  <div>
+                  <div className="friend-result-details">
                     <strong>{request.name}</strong>
                     <p>{request.childId}</p>
+
+                    <div className="friend-request-actions">
+                      <button
+                        type="button"
+                        className="friend-request-accept"
+                        onClick={() =>
+                          respondToFriendRequest(
+                            request.childId,
+                            "accept"
+                          )
+                        }
+                        disabled={
+                          respondingRequestId === request.childId
+                        }
+                      >
+                        {respondingRequestId === request.childId
+                          ? "Processing..."
+                          : "Accept"}
+                      </button>
+
+                      <button
+                        type="button"
+                        className="friend-request-decline"
+                        onClick={() =>
+                          respondToFriendRequest(
+                            request.childId,
+                            "decline"
+                          )
+                        }
+                        disabled={
+                          respondingRequestId === request.childId
+                        }
+                      >
+                        Decline
+                      </button>
+                    </div>
                   </div>
                 </div>
               ))}
@@ -403,6 +484,12 @@ useEffect(() => {
           ) : (
             <p className="friend-search-message">
               {friendRequestsMessage}
+            </p>
+          )}
+
+          {friendResponseMessage && (
+            <p className="friend-request-message">
+              {friendResponseMessage}
             </p>
           )}
 

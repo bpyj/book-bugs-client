@@ -376,3 +376,35 @@ main > p { margin-bottom: 28px; }
 .friend-request-message {
   margin: 10px 0 0;
 }
+
+.friend-request-actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.friend-request-accept,
+.friend-request-decline {
+  padding: 9px 14px;
+  border: 0;
+  border-radius: 10px;
+  font: inherit;
+  font-weight: 650;
+  cursor: pointer;
+}
+
+.friend-request-accept {
+  background: var(--accent);
+  color: white;
+}
+
+.friend-request-decline {
+  background: var(--code-bg);
+  color: var(--text-h);
+}
+
+.friend-request-accept:disabled,
+.friend-request-decline:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
