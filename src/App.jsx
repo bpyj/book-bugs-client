@@ -22,6 +22,11 @@ function App() {
   const [sendingFriendRequest, setSendingFriendRequest] = useState(false);
   const [friendRequestMessage, setFriendRequestMessage] = useState("");
 
+  const [showFriendRequests, setShowFriendRequests] = useState(false);
+  const [friendRequests, setFriendRequests] = useState([]);
+  const [loadingFriendRequests, setLoadingFriendRequests] = useState(false);
+  const [friendRequestsMessage, setFriendRequestsMessage] = useState("");
+
 const CURRENT_CHILD_ID = "JY001";
 
 useEffect(() => {
@@ -132,7 +137,7 @@ useEffect(() => {
       setFriendSearchResult(null);
       setFriendSearchMessage("");
       setFriendRequestMessage("");
-      
+
 
       const response = await fetch(
         `${API_BASE}/api/children/search/${encodeURIComponent(searchId)}`
@@ -201,6 +206,34 @@ useEffect(() => {
     }
   }
 
+  async function loadFriendRequests(childId) {
+    try {
+      setLoadingFriendRequests(true);
+      setFriendRequests([]);
+      setFriendRequestsMessage("");
+
+      const response = await fetch(
+        `${API_BASE}/api/friend-requests/${encodeURIComponent(childId)}`
+      );
+
+      if (!response.ok) {
+        throw new Error("Could not retrieve friend requests");
+      }
+
+      const data = await response.json();
+
+      setFriendRequests(data);
+
+      if (data.length === 0) {
+        setFriendRequestsMessage("No pending friend requests.");
+      }
+    } catch (error) {
+      setFriendRequestsMessage(error.message);
+    } finally {
+      setLoadingFriendRequests(false);
+    }
+  }
+
   return (
     <main>
       <h1>Book Bugs</h1>
@@ -241,6 +274,7 @@ useEffect(() => {
           type="button"
           className="child-button"
           onClick={() => {
+            setShowFriendRequests(false);
             setShowAddFriend(true);
             setFriendSearchId("");
             setFriendSearchResult(null);
@@ -250,6 +284,17 @@ useEffect(() => {
         >
           <span className="child-initial">+</span>
           Add Friend
+        </button>
+        <button
+          type="button"
+          className="child-button"
+          onClick={() => {
+            setShowAddFriend(false);
+            setShowFriendRequests(true);
+            loadFriendRequests(selectedChildId);
+          }}
+        >
+          Friend Requests
         </button>
       </div>
 
@@ -325,10 +370,49 @@ useEffect(() => {
           >
             Back to Collection
           </button>
+        </section>        
+      )}
+      {showFriendRequests && (
+        <section className="add-friend-panel">
+          <h2>Friend Requests</h2>
+
+          {loadingFriendRequests ? (
+            <p>Loading friend requests...</p>
+          ) : friendRequests.length > 0 ? (
+            <div>
+              {friendRequests.map((request) => (
+                <div
+                  key={request.childId}
+                  className="friend-search-result"
+                >
+                  <span className="child-initial">
+                    {request.name.charAt(0)}
+                  </span>
+
+                  <div>
+                    <strong>{request.name}</strong>
+                    <p>{request.childId}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="friend-search-message">
+              {friendRequestsMessage}
+            </p>
+          )}
+
+          <button
+            type="button"
+            className="close-add-friend"
+            onClick={() => setShowFriendRequests(false)}
+          >
+            Back to Collection
+          </button>
         </section>
       )}
 
-      {!showAddFriend && (
+      {!showAddFriend && !showFriendRequests && (
         <>
           {selectedChild && (
             <section className="collection-header">
