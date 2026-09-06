@@ -13,6 +13,12 @@ function App() {
   const [loadingCollection, setLoadingCollection] = useState(false);
   const [error, setError] = useState("");
 
+  const [showAddFriend, setShowAddFriend] = useState(false);
+  const [friendSearchId, setFriendSearchId] = useState("");
+  const [friendSearchResult, setFriendSearchResult] = useState(null);
+  const [friendSearchMessage, setFriendSearchMessage] = useState("");
+  const [searchingFriend, setSearchingFriend] = useState(false);
+
 const CURRENT_CHILD_ID = "JY001";
 
 useEffect(() => {
@@ -109,6 +115,43 @@ useEffect(() => {
     (child) => child.childId === selectedChildId
   );
 
+  async function searchFriend() {
+    const searchId = friendSearchId.trim();
+
+    if (!searchId) {
+      setFriendSearchResult(null);
+      setFriendSearchMessage("Enter a Friend ID.");
+      return;
+    }
+
+    try {
+      setSearchingFriend(true);
+      setFriendSearchResult(null);
+      setFriendSearchMessage("");
+
+      const response = await fetch(
+        `${API_BASE}/api/children/search/${encodeURIComponent(searchId)}`
+      );
+
+      if (response.status === 404) {
+        setFriendSearchMessage("Friend not found.");
+        return;
+      }
+
+      if (!response.ok) {
+        throw new Error("Could not search for friend");
+      }
+
+      const data = await response.json();
+
+      setFriendSearchResult(data);
+    } catch (error) {
+      setFriendSearchMessage(error.message);
+    } finally {
+      setSearchingFriend(false);
+    }
+  }
+
   return (
     <main>
       <h1>Book Bugs</h1>
@@ -148,25 +191,110 @@ useEffect(() => {
         <button
           type="button"
           className="child-button"
-          onClick={() => alert("Add Friend screen coming next")}
+          onClick={() => {
+            setShowAddFriend(true);
+            setFriendSearchId("");
+            setFriendSearchResult(null);
+            setFriendSearchMessage("");
+          }}
         >
           <span className="child-initial">+</span>
           Add Friend
         </button>
       </div>
 
-      {selectedChild && (
-        <section className="collection-header">
-          <h2>{selectedChild.name}'s Collection</h2>
+      {showAddFriend && (
+        <section className="add-friend-panel">
+          <h2>Add a Friend</h2>
 
-          {!loadingCollection && (
-            <p>
-              <strong>{records.length}</strong> Book Bugs collected
+          <p>Enter your friend's Book Bugs ID.</p>
+
+          <div className="friend-search">
+            <input
+              type="text"
+              value={friendSearchId}
+              placeholder="Example: TOM001"
+              onChange={(event) =>
+                setFriendSearchId(event.target.value)
+              }
+              onKeyDown={(event) => {
+                if (event.key === "Enter") {
+                  searchFriend();
+                }
+              }}
+            />
+
+            <button
+              type="button"
+              onClick={searchFriend}
+              disabled={searchingFriend}
+            >
+              {searchingFriend ? "Searching..." : "Search"}
+            </button>
+          </div>
+
+          {friendSearchMessage && (
+            <p className="friend-search-message">
+              {friendSearchMessage}
             </p>
           )}
+
+          {friendSearchResult && (
+            <div className="friend-search-result">
+              <span className="child-initial">
+                {friendSearchResult.name.charAt(0)}
+              </span>
+
+              <div>
+                <strong>{friendSearchResult.name}</strong>
+                <p>{friendSearchResult.childId}</p>
+              </div>
+            </div>
+          )}
+
+          <button
+            type="button"
+            className="close-add-friend"
+            onClick={() => setShowAddFriend(false)}
+          >
+            Back to Collection
+          </button>
         </section>
       )}
 
+      {!showAddFriend && (
+        <>
+          {selectedChild && (
+            <section className="collection-header">
+              <h2>{selectedChild.name}'s Collection</h2>
+
+              {!loadingCollection && (
+                <p>
+                  <strong>{records.length}</strong> Book Bugs collected
+                </p>
+              )}
+            </section>
+          )}
+
+          {loadingCollection ? (
+            <p className="collection-message">
+              Loading collection...
+            </p>
+          ) : error ? (
+            <p className="collection-message error-message">
+              {error}
+            </p>
+          ) : records.length > 0 ? (
+            <InventoryTable records={records} />
+          ) : (
+            <p className="collection-message">
+              No Book Bugs collected yet.
+            </p>
+          )}
+        </>
+      )}
+
+ 
       {loadingCollection ? (
         <p className="collection-message">Loading collection...</p>
       ) : error ? (
