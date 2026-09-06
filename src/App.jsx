@@ -252,7 +252,11 @@ useEffect(() => {
                 ? "child-button active"
                 : "child-button"
             }
-            onClick={() => setSelectedChildId(child.childId)}
+            onClick={() => {
+              setSelectedChildId(child.childId);
+              setShowAddFriend(false);
+              setShowFriendRequests(false);
+            }}
           >
             {child.avatar?.url ? (
               <img
@@ -445,19 +449,6 @@ useEffect(() => {
       )}
 
  
-      {loadingCollection ? (
-        <p className="collection-message">Loading collection...</p>
-      ) : error ? (
-        <p className="collection-message error-message">
-          {error}
-        </p>
-      ) : records.length > 0 ? (
-        <InventoryTable records={records} />
-      ) : (
-        <p className="collection-message">
-          No Book Bugs collected yet.
-        </p>
-      )}
     </main>
   );
 }
