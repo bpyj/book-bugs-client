@@ -32,48 +32,51 @@ function App() {
 
 const CURRENT_CHILD_ID = "JY001";
 
-useEffect(() => {
-  async function loadChildren() {
-    try {
-      const [childrenResponse, friendsResponse] = await Promise.all([
-        fetch(`${API_BASE}/api/children`),
-        fetch(`${API_BASE}/api/friends/${CURRENT_CHILD_ID}`),
-      ]);
+async function loadVisibleChildren() {
+  try {
+    setLoadingChildren(true);
 
-      if (!childrenResponse.ok) {
-        throw new Error("Could not retrieve children");
-      }
+    const [childrenResponse, friendsResponse] = await Promise.all([
+      fetch(`${API_BASE}/api/children`),
+      fetch(`${API_BASE}/api/friends/${CURRENT_CHILD_ID}`),
+    ]);
 
-      if (!friendsResponse.ok) {
-        throw new Error("Could not retrieve friends");
-      }
-
-      const allChildren = await childrenResponse.json();
-      const friends = await friendsResponse.json();
-
-      const currentChild = allChildren.find(
-        (child) => child.childId === CURRENT_CHILD_ID
-      );
-
-      if (!currentChild) {
-        throw new Error("Current child not found");
-      }
-
-      const visibleChildren = [
-        currentChild,
-        ...friends,
-      ];
-
-      setChildren(visibleChildren);
-      setSelectedChildId(CURRENT_CHILD_ID);
-    } catch (error) {
-      setError(error.message);
-    } finally {
-      setLoadingChildren(false);
+    if (!childrenResponse.ok) {
+      throw new Error("Could not retrieve children");
     }
-  }
 
-  loadChildren();
+    if (!friendsResponse.ok) {
+      throw new Error("Could not retrieve friends");
+    }
+
+    const allChildren = await childrenResponse.json();
+    const friends = await friendsResponse.json();
+
+    const currentChild = allChildren.find(
+      (child) => child.childId === CURRENT_CHILD_ID
+    );
+
+    if (!currentChild) {
+      throw new Error("Current child not found");
+    }
+
+    setChildren([
+      currentChild,
+      ...friends,
+    ]);
+
+    setSelectedChildId((current) =>
+      current || CURRENT_CHILD_ID
+    );
+  } catch (error) {
+    setError(error.message);
+  } finally {
+    setLoadingChildren(false);
+  }
+}
+
+useEffect(() => {
+  loadVisibleChildren();
 }, []);
 
 useEffect(() => {
@@ -251,7 +254,7 @@ useEffect(() => {
           },
           body: JSON.stringify({
             fromChildId,
-            toChildId: selectedChildId,
+            toChildId: CURRENT_CHILD_ID,
             action,
           }),
         }
@@ -271,7 +274,11 @@ useEffect(() => {
           : "Friend request declined."
       );
 
-      await loadFriendRequests(selectedChildId);
+      await loadFriendRequests(CURRENT_CHILD_ID);
+
+      if (action === "accept") {
+        await loadVisibleChildren();
+      }
     } catch (error) {
       setFriendResponseMessage(error.message);
     } finally {
@@ -340,7 +347,8 @@ useEffect(() => {
           onClick={() => {
             setShowAddFriend(false);
             setShowFriendRequests(true);
-            loadFriendRequests(selectedChildId);
+            setFriendResponseMessage("");
+            loadFriendRequests(CURRENT_CHILD_ID);
           }}
         >
           Friend Requests
