@@ -3,12 +3,31 @@ import AddFriendPanel from "./components/AddFriendPanel";
 import ChildSwitcher from "./components/ChildSwitcher";
 import CollectionView from "./components/CollectionView";
 import FriendRequestsPanel from "./components/FriendRequestsPanel";
+import Login from "./components/Login";
 import "./App.css";
 
-const API_BASE = "https://book-bugs-server.onrender.com";
-const CURRENT_CHILD_ID = "JY001";
+const API_BASE =
+  import.meta.env.VITE_API_BASE ||
+  "https://book-bugs-server.onrender.com";
+
+function authHeaders(token) {
+  return {
+    Authorization: `Bearer ${token}`,
+  };
+}
 
 function App() {
+
+  const [token, setToken] = useState(
+    () => localStorage.getItem("bookBugsToken") || ""
+  );
+  const [currentChild, setCurrentChild] = useState(null);
+
+  const [loginChildId, setLoginChildId] = useState("");
+  const [loginPin, setLoginPin] = useState("");
+  const [loggingIn, setLoggingIn] = useState(false);
+  const [loginError, setLoginError] = useState("");
+
   const [children, setChildren] = useState([]);
   const [selectedChildId, setSelectedChildId] = useState("");
   const [records, setRecords] = useState([]);
@@ -35,34 +54,28 @@ function App() {
   const [friendResponseMessage, setFriendResponseMessage] = useState("");
 
   async function loadVisibleChildren() {
+    if (!token || !currentChild) return;
+
     try {
       setLoadingChildren(true);
 
-      const [childrenResponse, friendsResponse] = await Promise.all([
-        fetch(`${API_BASE}/api/children`),
-        fetch(`${API_BASE}/api/friends/${CURRENT_CHILD_ID}`),
-      ]);
-
-      if (!childrenResponse.ok) {
-        throw new Error("Could not retrieve children");
-      }
+      const friendsResponse = await fetch(
+        `${API_BASE}/api/friends/${currentChild.childId}`,
+        {
+          headers: authHeaders(token),
+        }
+      );
 
       if (!friendsResponse.ok) {
         throw new Error("Could not retrieve friends");
       }
 
-      const allChildren = await childrenResponse.json();
       const friends = await friendsResponse.json();
-      const currentChild = allChildren.find(
-        (child) => child.childId === CURRENT_CHILD_ID
-      );
-
-      if (!currentChild) {
-        throw new Error("Current child not found");
-      }
 
       setChildren([currentChild, ...friends]);
-      setSelectedChildId((current) => current || CURRENT_CHILD_ID);
+      setSelectedChildId(
+        (current) => current || currentChild.childId
+      );
     } catch (error) {
       setError(error.message);
     } finally {
@@ -71,37 +84,64 @@ function App() {
   }
 
   useEffect(() => {
+    if (!token || currentChild) return undefined;
+
+    let ignore = false;
+
+    async function restoreLogin() {
+      try {
+        const response = await fetch(`${API_BASE}/api/auth/me`, {
+          headers: authHeaders(token),
+        });
+
+        if (!response.ok) {
+          throw new Error("Login expired");
+        }
+
+        const data = await response.json();
+
+        if (!ignore) {
+          setCurrentChild(data.child);
+        }
+      } catch {
+        if (!ignore) {
+          localStorage.removeItem("bookBugsToken");
+          setToken("");
+          setCurrentChild(null);
+        }
+      }
+    }
+
+    restoreLogin();
+
+    return () => {
+      ignore = true;
+    };
+  }, [token, currentChild]);
+
+  useEffect(() => {
+    if (!token || !currentChild) return undefined;
+
     let ignore = false;
 
     async function loadInitialChildren() {
       try {
-        const [childrenResponse, friendsResponse] = await Promise.all([
-          fetch(`${API_BASE}/api/children`),
-          fetch(`${API_BASE}/api/friends/${CURRENT_CHILD_ID}`),
-        ]);
-
-        if (!childrenResponse.ok) {
-          throw new Error("Could not retrieve children");
-        }
+        const friendsResponse = await fetch(
+          `${API_BASE}/api/friends/${currentChild.childId}`,
+          {
+            headers: authHeaders(token),
+          }
+        );
 
         if (!friendsResponse.ok) {
           throw new Error("Could not retrieve friends");
         }
 
-        const allChildren = await childrenResponse.json();
         const friends = await friendsResponse.json();
-
-        const currentChild = allChildren.find(
-          (child) => child.childId === CURRENT_CHILD_ID
-        );
-
-        if (!currentChild) {
-          throw new Error("Current child not found");
-        }
 
         if (!ignore) {
           setChildren([currentChild, ...friends]);
-          setSelectedChildId(CURRENT_CHILD_ID);
+          setSelectedChildId(currentChild.childId);
           setLoadingChildren(false);
         }
       } catch (error) {
@@ -117,10 +157,10 @@ function App() {
     return () => {
       ignore = true;
     };
-  }, []);
+  }, [token, currentChild]);
 
   useEffect(() => {
-    if (!selectedChildId) return undefined;
+    if (!selectedChildId || !token) return undefined;
 
     const controller = new AbortController();
 
@@ -131,7 +171,10 @@ function App() {
 
         const response = await fetch(
           `${API_BASE}/api/children/${selectedChildId}/collection`,
-          { signal: controller.signal }
+          {
+            signal: controller.signal,
+            headers: authHeaders(token),
+          }
         );
 
         if (!response.ok) {
@@ -153,7 +196,21 @@ function App() {
 
     loadCollection();
     return () => controller.abort();
-  }, [selectedChildId]);
+  }, [selectedChildId, token]);
+
+  if (!token || !currentChild) {
+    return (
+      <Login
+        childId={loginChildId}
+        setChildId={setLoginChildId}
+        pin={loginPin}
+        setPin={setLoginPin}
+        loading={loggingIn}
+        error={loginError}
+        onLogin={handleLogin}
+      />
+    );
+  }
 
   if (loadingChildren) {
     return <h2>Loading Book Bugs...</h2>;
@@ -183,7 +240,10 @@ function App() {
       setFriendRequestMessage("");
 
       const response = await fetch(
-        `${API_BASE}/api/children/search/${encodeURIComponent(searchId)}`
+        `${API_BASE}/api/children/search/${encodeURIComponent(searchId)}`,
+        {
+          headers: authHeaders(token),
+        }
       );
 
       if (response.status === 404) {
@@ -215,9 +275,9 @@ function App() {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
+          ...authHeaders(token),
         },
         body: JSON.stringify({
-          fromChildId: CURRENT_CHILD_ID,
           toChildId: friendSearchResult.childId,
         }),
       });
@@ -250,7 +310,10 @@ function App() {
       setFriendRequestsMessage("");
 
       const response = await fetch(
-        `${API_BASE}/api/friend-requests/${encodeURIComponent(childId)}`
+        `${API_BASE}/api/friend-requests/${encodeURIComponent(childId)}`,
+        {
+          headers: authHeaders(token),
+        }
       );
 
       if (!response.ok) {
@@ -279,10 +342,10 @@ function App() {
         method: "PATCH",
         headers: {
           "Content-Type": "application/json",
+          ...authHeaders(token),
         },
         body: JSON.stringify({
           fromChildId,
-          toChildId: CURRENT_CHILD_ID,
           action,
         }),
       });
@@ -299,7 +362,7 @@ function App() {
           : "Friend request declined."
       );
 
-      await loadFriendRequests(CURRENT_CHILD_ID);
+      await loadFriendRequests(currentChild.childId);
 
       if (action === "accept") {
         await loadVisibleChildren();
@@ -330,12 +393,76 @@ function App() {
     setShowAddFriend(false);
     setShowFriendRequests(true);
     setFriendResponseMessage("");
-    loadFriendRequests(CURRENT_CHILD_ID);
+    loadFriendRequests(currentChild.childId);
+  }
+
+  function handleLogout() {
+    localStorage.removeItem("bookBugsToken");
+
+    setToken("");
+    setCurrentChild(null);
+    setChildren([]);
+    setSelectedChildId("");
+    setRecords([]);
+    setLoadingChildren(true);
+    setShowAddFriend(false);
+    setShowFriendRequests(false);
+    setError("");
+    setLoginChildId("");
+    setLoginPin("");
+    setLoginError("");
+  }
+
+  async function handleLogin() {
+    const childId = loginChildId.trim();
+    const pin = loginPin.trim();
+
+    if (!childId || !pin) {
+      setLoginError("Book Bugs ID and PIN are required.");
+      return;
+    }
+
+    try {
+      setLoggingIn(true);
+      setLoginError("");
+
+      const response = await fetch(`${API_BASE}/api/auth/login`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          childId,
+          pin,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.message || "Login failed");
+      }
+
+      localStorage.setItem("bookBugsToken", data.token);
+      
+      setLoadingChildren(true);
+      setToken(data.token);
+      setCurrentChild(data.child);
+      setLoginPin("");
+    } catch (error) {
+      setLoginError(error.message);
+    } finally {
+      setLoggingIn(false);
+    }
   }
 
   return (
     <main>
       <h1>Book Bugs</h1>
+
+      <button type="button" onClick={handleLogout}>
+        Logout
+      </button>
 
       <p className="app-intro">
         Choose a child to view their Book Bugs collection.
