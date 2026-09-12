@@ -1,27 +1,26 @@
 import { useEffect, useState } from "react";
 import AddFriendPanel from "./components/AddFriendPanel";
+import AppHeader from "./components/AppHeader";
 import ChildSwitcher from "./components/ChildSwitcher";
 import CollectionView from "./components/CollectionView";
 import FriendRequestsPanel from "./components/FriendRequestsPanel";
 import Login from "./components/Login";
+import useAuth, { authHeaders } from "./hooks/useAuth";
+import AppLoading from "./components/AppLoading";
 import "./App.css";
 
 const API_BASE =
   import.meta.env.VITE_API_BASE ||
   "https://book-bugs-server.onrender.com";
 
-function authHeaders(token) {
-  return {
-    Authorization: `Bearer ${token}`,
-  };
-}
-
 function App() {
-
-  const [token, setToken] = useState(
-    () => localStorage.getItem("bookBugsToken") || ""
-  );
-  const [currentChild, setCurrentChild] = useState(null);
+  const {
+    token,
+    currentChild,
+    restoringSession,
+    login,
+    logout,
+  } = useAuth(API_BASE);
 
   const [loginChildId, setLoginChildId] = useState("");
   const [loginPin, setLoginPin] = useState("");
@@ -73,6 +72,7 @@ function App() {
       const friends = await friendsResponse.json();
 
       setChildren([currentChild, ...friends]);
+
       setSelectedChildId(
         (current) => current || currentChild.childId
       );
@@ -82,42 +82,6 @@ function App() {
       setLoadingChildren(false);
     }
   }
-
-  useEffect(() => {
-    if (!token || currentChild) return undefined;
-
-    let ignore = false;
-
-    async function restoreLogin() {
-      try {
-        const response = await fetch(`${API_BASE}/api/auth/me`, {
-          headers: authHeaders(token),
-        });
-
-        if (!response.ok) {
-          throw new Error("Login expired");
-        }
-
-        const data = await response.json();
-
-        if (!ignore) {
-          setCurrentChild(data.child);
-        }
-      } catch {
-        if (!ignore) {
-          localStorage.removeItem("bookBugsToken");
-          setToken("");
-          setCurrentChild(null);
-        }
-      }
-    }
-
-    restoreLogin();
-
-    return () => {
-      ignore = true;
-    };
-  }, [token, currentChild]);
 
   useEffect(() => {
     if (!token || !currentChild) return undefined;
@@ -182,6 +146,7 @@ function App() {
         }
 
         const data = await response.json();
+
         setRecords(data.collection);
       } catch (error) {
         if (error.name !== "AbortError") {
@@ -195,8 +160,13 @@ function App() {
     }
 
     loadCollection();
+
     return () => controller.abort();
   }, [selectedChildId, token]);
+
+  if (restoringSession) {
+    return <AppLoading />;
+  }
 
   if (!token || !currentChild) {
     return (
@@ -217,7 +187,15 @@ function App() {
   }
 
   if (error && children.length === 0) {
-    return <h2>Error: {error}</h2>;
+    return (
+      <main className="app-loading">
+        <div className="app-loading-card">
+          <p className="error-message">
+            Error: {error}
+          </p>
+        </div>
+      </main>
+    );
   }
 
   const selectedChild = children.find(
@@ -256,6 +234,7 @@ function App() {
       }
 
       const data = await response.json();
+
       setFriendSearchResult(data);
     } catch (error) {
       setFriendSearchMessage(error.message);
@@ -271,16 +250,19 @@ function App() {
       setSendingFriendRequest(true);
       setFriendRequestMessage("");
 
-      const response = await fetch(`${API_BASE}/api/friend-requests`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          ...authHeaders(token),
-        },
-        body: JSON.stringify({
-          toChildId: friendSearchResult.childId,
-        }),
-      });
+      const response = await fetch(
+        `${API_BASE}/api/friend-requests`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            ...authHeaders(token),
+          },
+          body: JSON.stringify({
+            toChildId: friendSearchResult.childId,
+          }),
+        }
+      );
 
       const data = await response.json();
 
@@ -292,7 +274,9 @@ function App() {
       }
 
       if (!response.ok) {
-        throw new Error(data.message || "Could not send friend request");
+        throw new Error(
+          data.message || "Could not send friend request"
+        );
       }
 
       setFriendRequestMessage("Friend request sent!");
@@ -321,10 +305,13 @@ function App() {
       }
 
       const data = await response.json();
+
       setFriendRequests(data);
 
       if (data.length === 0) {
-        setFriendRequestsMessage("No pending friend requests.");
+        setFriendRequestsMessage(
+          "No pending friend requests."
+        );
       }
     } catch (error) {
       setFriendRequestsMessage(error.message);
@@ -333,27 +320,36 @@ function App() {
     }
   }
 
-  async function respondToFriendRequest(fromChildId, action) {
+  async function respondToFriendRequest(
+    fromChildId,
+    action
+  ) {
     try {
       setRespondingRequestId(fromChildId);
       setFriendResponseMessage("");
 
-      const response = await fetch(`${API_BASE}/api/friend-requests/respond`, {
-        method: "PATCH",
-        headers: {
-          "Content-Type": "application/json",
-          ...authHeaders(token),
-        },
-        body: JSON.stringify({
-          fromChildId,
-          action,
-        }),
-      });
+      const response = await fetch(
+        `${API_BASE}/api/friend-requests/respond`,
+        {
+          method: "PATCH",
+          headers: {
+            "Content-Type": "application/json",
+            ...authHeaders(token),
+          },
+          body: JSON.stringify({
+            fromChildId,
+            action,
+          }),
+        }
+      );
 
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.message || "Could not respond to friend request");
+        throw new Error(
+          data.message ||
+            "Could not respond to friend request"
+        );
       }
 
       setFriendResponseMessage(
@@ -362,7 +358,9 @@ function App() {
           : "Friend request declined."
       );
 
-      await loadFriendRequests(currentChild.childId);
+      await loadFriendRequests(
+        currentChild.childId
+      );
 
       if (action === "accept") {
         await loadVisibleChildren();
@@ -393,14 +391,13 @@ function App() {
     setShowAddFriend(false);
     setShowFriendRequests(true);
     setFriendResponseMessage("");
+
     loadFriendRequests(currentChild.childId);
   }
 
   function handleLogout() {
-    localStorage.removeItem("bookBugsToken");
+    logout();
 
-    setToken("");
-    setCurrentChild(null);
     setChildren([]);
     setSelectedChildId("");
     setRecords([]);
@@ -418,36 +415,19 @@ function App() {
     const pin = loginPin.trim();
 
     if (!childId || !pin) {
-      setLoginError("Book Bugs ID and PIN are required.");
+      setLoginError(
+        "Book Bugs ID and PIN are required."
+      );
       return;
     }
 
     try {
       setLoggingIn(true);
       setLoginError("");
-
-      const response = await fetch(`${API_BASE}/api/auth/login`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          childId,
-          pin,
-        }),
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.message || "Login failed");
-      }
-
-      localStorage.setItem("bookBugsToken", data.token);
-      
       setLoadingChildren(true);
-      setToken(data.token);
-      setCurrentChild(data.child);
+
+      await login(childId, pin);
+
       setLoginPin("");
     } catch (error) {
       setLoginError(error.message);
@@ -458,15 +438,10 @@ function App() {
 
   return (
     <main>
-      <h1>Book Bugs</h1>
-
-      <button type="button" onClick={handleLogout}>
-        Logout
-      </button>
-
-      <p className="app-intro">
-        Choose a child to view their Book Bugs collection.
-      </p>
+      <AppHeader
+        currentChild={currentChild}
+        onLogout={handleLogout}
+      />
 
       <ChildSwitcher
         children={children}
@@ -487,30 +462,47 @@ function App() {
           sendingFriendRequest={sendingFriendRequest}
           sendFriendRequest={sendFriendRequest}
           friendRequestMessage={friendRequestMessage}
-          onClose={() => setShowAddFriend(false)}
+          onClose={() =>
+            setShowAddFriend(false)
+          }
         />
       )}
 
       {showFriendRequests && (
         <FriendRequestsPanel
           friendRequests={friendRequests}
-          loadingFriendRequests={loadingFriendRequests}
-          friendRequestsMessage={friendRequestsMessage}
-          respondingRequestId={respondingRequestId}
-          friendResponseMessage={friendResponseMessage}
-          respondToFriendRequest={respondToFriendRequest}
-          onClose={() => setShowFriendRequests(false)}
+          loadingFriendRequests={
+            loadingFriendRequests
+          }
+          friendRequestsMessage={
+            friendRequestsMessage
+          }
+          respondingRequestId={
+            respondingRequestId
+          }
+          friendResponseMessage={
+            friendResponseMessage
+          }
+          respondToFriendRequest={
+            respondToFriendRequest
+          }
+          onClose={() =>
+            setShowFriendRequests(false)
+          }
         />
       )}
 
-      {!showAddFriend && !showFriendRequests && (
-        <CollectionView
-          selectedChild={selectedChild}
-          records={records}
-          loadingCollection={loadingCollection}
-          error={error}
-        />
-      )}
+      {!showAddFriend &&
+        !showFriendRequests && (
+          <CollectionView
+            selectedChild={selectedChild}
+            records={records}
+            loadingCollection={
+              loadingCollection
+            }
+            error={error}
+          />
+        )}
     </main>
   );
 }

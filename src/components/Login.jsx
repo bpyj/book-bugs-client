@@ -13,41 +13,68 @@ function Login({
   }
 
   return (
-    <main>
-      <h1>Book Bugs</h1>
+    <main className="login-page">
+      <section className="login-card">
+        <div className="login-brand">
+          <div className="login-bug-mark" aria-hidden="true">
+            🐞
+          </div>
 
-      <form onSubmit={handleSubmit} className="login-panel">
-        <h2>Login</h2>
+          <div>
+            <h1>Book Bugs</h1>
+            <p className="login-subtitle">
+              Sign in to view your collection and friends.
+            </p>
+          </div>
+        </div>
 
-        <label>
-          Book Bugs ID
-          <input
-            type="text"
-            value={childId}
-            onChange={(event) => setChildId(event.target.value)}
-            placeholder="e.g. JY001"
-            autoComplete="username"
-          />
-        </label>
+        <form onSubmit={handleSubmit} className="login-panel">
+          <div className="login-field">
+            <label htmlFor="book-bugs-id">Book Bugs ID</label>
 
-        <label>
-          PIN
-          <input
-            type="password"
-            value={pin}
-            onChange={(event) => setPin(event.target.value)}
-            placeholder="4–6 digit PIN"
-            inputMode="numeric"
-            autoComplete="current-password"
-          />
-        </label>
+            <input
+              id="book-bugs-id"
+              type="text"
+              value={childId}
+              onChange={(event) => setChildId(event.target.value)}
+              placeholder="e.g. JY001"
+              autoComplete="username"
+              autoCapitalize="characters"
+              spellCheck="false"
+              disabled={loading}
+            />
+          </div>
 
-        <button type="submit" disabled={loading}>
-          {loading ? "Logging in..." : "Login"}
-        </button>
+          <div className="login-field">
+            <label htmlFor="book-bugs-pin">PIN</label>
 
-        {error && <p className="login-error">{error}</p>}
-      </form>
+            <input
+              id="book-bugs-pin"
+              type="password"
+              value={pin}
+              onChange={(event) => setPin(event.target.value)}
+              placeholder="Enter your PIN"
+              inputMode="numeric"
+              autoComplete="current-password"
+              disabled={loading}
+            />
+          </div>
+
+          <button
+            type="submit"
+            className="login-button"
+            disabled={loading}
+          >
+            {loading ? "Logging in..." : "Login"}
+          </button>
+
+          {error && (
+            <p className="login-error" role="alert">
+              {error}
+            </p>
+          )}
+        </form>
+      </section>
     </main>
   );
 }
