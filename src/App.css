@@ -157,15 +157,20 @@ main > p { margin-bottom: 28px; }
   min-height: 100svh;
   display: grid;
   place-items: center;
+  width: 100%;
   padding: 24px;
+  box-sizing: border-box;
 }
 
 .app-loading-card {
   display: grid;
   justify-items: center;
   gap: 14px;
-  min-width: min(320px, 90vw);
-  padding: 28px 32px;
+
+  width: min(320px, 100%);
+  padding: 28px 24px;
+  box-sizing: border-box;
+
   border: 1px solid var(--border);
   border-radius: 20px;
   background: var(--bg);
